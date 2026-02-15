@@ -64,7 +64,7 @@ const EVENTS_DB = [
         ]
     },
     {
-        title: "Plaga Cucarachas", emoji: "🪳",
+        title: "Plaga Cucarachas", emoji: "🐞",
         desc: "Han salido de las alcantarillas. Parecen organizadas.",
         options: [
             { txt: "Lanzallamas", sub: "Fuego.", cost: -50, pop: -10, sanity: 10, msg: "Efectivo, pero quemaste el felpudo." },
