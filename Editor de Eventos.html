@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor - Comunidad del Caos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-thumb { background: #4b5563; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+
+        /* Clases de utilidad para temas */
+        .input-theme {
+            @apply bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 
+                   dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white transition-colors;
+        }
+        .label-theme {
+            @apply block mb-2 text-xs font-bold text-gray-500 uppercase tracking-wider dark:text-gray-400;
+        }
+        .card-theme {
+            @apply bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-700 rounded-xl shadow-sm transition-colors;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 h-screen overflow-hidden flex flex-col transition-colors duration-300">
+
+    <!-- Header -->
+    <header class="h-16 bg-white border-b border-gray-200 dark:bg-gray-800 dark:border-gray-700 flex items-center justify-between px-6 shrink-0 transition-colors">
+        <div class="flex items-center gap-3">
+            <span class="text-2xl">🤡</span>
+            <h1 class="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Editor Comunidad del Caos</h1>
+        </div>
+        <div class="flex items-center gap-3">
+            <!-- Theme Toggle -->
+            <button onclick="toggleTheme()" class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors mr-2" title="Cambiar Tema">
+                <i id="themeIcon" data-lucide="sun" class="w-5 h-5"></i>
+            </button>
+
+            <button onclick="downloadBackup()" class="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 rounded-lg text-sm font-medium transition">
+                <i data-lucide="download"></i> <span class="hidden sm:inline">Descargar .js</span>
+            </button>
+            <button onclick="copyToClipboard()" class="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition shadow-lg shadow-blue-500/30 dark:shadow-blue-900/50">
+                <i data-lucide="copy"></i> <span class="hidden sm:inline">Copiar Código</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Sidebar: List of Events -->
+        <aside class="w-1/4 min-w-[300px] bg-gray-50 border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700 flex flex-col transition-colors">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <span class="text-sm font-semibold text-gray-500 dark:text-gray-400">Eventos (<span id="eventCount">0</span>)</span>
+                <button onclick="addNewEvent()" class="p-2 bg-green-600 hover:bg-green-500 text-white rounded-md transition shadow-md shadow-green-600/20" title="Añadir Nuevo">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div id="eventList" class="flex-1 overflow-y-auto p-2 space-y-2">
+                <!-- Events will be injected here via JS -->
+            </div>
+        </aside>
+
+        <!-- Editor Panel -->
+        <section id="editorPanel" class="flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-900 p-8 relative hidden transition-colors">
+            
+            <div class="max-w-4xl mx-auto space-y-8 pb-20">
+                <!-- Top Actions -->
+                <div class="flex justify-between items-start">
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 border-b border-gray-200 dark:border-gray-700 pb-2 w-full">Editar Carta</h2>
+                    <button onclick="deleteCurrentEvent()" class="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 flex items-center gap-2 px-3 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i> Eliminar
+                    </button>
+                </div>
+
+                <!-- Main Card Info -->
+                <div class="card-theme grid grid-cols-12 gap-6 p-6">
+                    <div class="col-span-2">
+                        <label class="label-theme">Emoji</label>
+                        <input type="text" id="editEmoji" class="input-theme text-center text-2xl" maxlength="4">
+                    </div>
+                    <div class="col-span-7">
+                        <label class="label-theme">Título del Evento</label>
+                        <input type="text" id="editTitle" class="input-theme font-bold">
+                    </div>
+                    <div class="col-span-3 flex items-end pb-3">
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="editRare" class="sr-only peer">
+                            <div class="relative w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                            <span class="ms-3 text-sm font-medium text-gray-600 dark:text-gray-300">Es Raro</span>
+                        </label>
+                    </div>
+                    <div class="col-span-12">
+                        <label class="label-theme">Descripción (El problema)</label>
+                        <textarea id="editDesc" rows="2" class="input-theme"></textarea>
+                    </div>
+                </div>
+
+                <!-- Options Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Option 1 -->
+                    <div class="card-theme p-4 relative group hover:ring-2 hover:ring-blue-500/50 transition duration-200">
+                        <div class="absolute -top-3 left-4 bg-gray-200 dark:bg-gray-700 px-2 text-xs font-bold text-blue-600 dark:text-blue-400 rounded transition-colors">OPCIÓN 1</div>
+                        <div class="space-y-3 mt-2">
+                            <div>
+                                <label class="label-theme">Texto Botón</label>
+                                <input type="text" data-opt="0" data-field="txt" class="opt-input input-theme">
+                            </div>
+                            <div>
+                                <label class="label-theme">Subtexto</label>
+                                <input type="text" data-opt="0" data-field="sub" class="opt-input input-theme text-xs text-gray-500 dark:text-gray-400">
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div><label class="label-theme">💶 €</label><input type="number" data-opt="0" data-field="money" class="opt-input input-theme text-center px-1"></div>
+                                <div><label class="label-theme">👥 Pop</label><input type="number" data-opt="0" data-field="pop" class="opt-input input-theme text-center px-1"></div>
+                                <div><label class="label-theme">🧠 Cor</label><input type="number" data-opt="0" data-field="sanity" class="opt-input input-theme text-center px-1"></div>
+                            </div>
+                            <div>
+                                <label class="label-theme">Mensaje Resultado</label>
+                                <textarea rows="2" data-opt="0" data-field="msg" class="opt-input input-theme text-sm"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Option 2 -->
+                    <div class="card-theme p-4 relative group hover:ring-2 hover:ring-blue-500/50 transition duration-200">
+                        <div class="absolute -top-3 left-4 bg-gray-200 dark:bg-gray-700 px-2 text-xs font-bold text-blue-600 dark:text-blue-400 rounded transition-colors">OPCIÓN 2</div>
+                        <div class="space-y-3 mt-2">
+                            <div>
+                                <label class="label-theme">Texto Botón</label>
+                                <input type="text" data-opt="1" data-field="txt" class="opt-input input-theme">
+                            </div>
+                            <div>
+                                <label class="label-theme">Subtexto</label>
+                                <input type="text" data-opt="1" data-field="sub" class="opt-input input-theme text-xs text-gray-500 dark:text-gray-400">
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div><label class="label-theme">💶 €</label><input type="number" data-opt="1" data-field="money" class="opt-input input-theme text-center px-1"></div>
+                                <div><label class="label-theme">👥 Pop</label><input type="number" data-opt="1" data-field="pop" class="opt-input input-theme text-center px-1"></div>
+                                <div><label class="label-theme">🧠 Cor</label><input type="number" data-opt="1" data-field="sanity" class="opt-input input-theme text-center px-1"></div>
+                            </div>
+                            <div>
+                                <label class="label-theme">Mensaje Resultado</label>
+                                <textarea rows="2" data-opt="1" data-field="msg" class="opt-input input-theme text-sm"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Option 3 -->
+                    <div class="card-theme p-4 relative group hover:ring-2 hover:ring-blue-500/50 transition duration-200">
+                        <div class="absolute -top-3 left-4 bg-gray-200 dark:bg-gray-700 px-2 text-xs font-bold text-blue-600 dark:text-blue-400 rounded transition-colors">OPCIÓN 3</div>
+                        <div class="space-y-3 mt-2">
+                            <div>
+                                <label class="label-theme">Texto Botón</label>
+                                <input type="text" data-opt="2" data-field="txt" class="opt-input input-theme">
+                            </div>
+                            <div>
+                                <label class="label-theme">Subtexto</label>
+                                <input type="text" data-opt="2" data-field="sub" class="opt-input input-theme text-xs text-gray-500 dark:text-gray-400">
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div><label class="label-theme">💶 €</label><input type="number" data-opt="2" data-field="money" class="opt-input input-theme text-center px-1"></div>
+                                <div><label class="label-theme">👥 Pop</label><input type="number" data-opt="2" data-field="pop" class="opt-input input-theme text-center px-1"></div>
+                                <div><label class="label-theme">🧠 Cor</label><input type="number" data-opt="2" data-field="sanity" class="opt-input input-theme text-center px-1"></div>
+                            </div>
+                            <div>
+                                <label class="label-theme">Mensaje Resultado</label>
+                                <textarea rows="2" data-opt="2" data-field="msg" class="opt-input input-theme text-sm"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+        
+        <!-- Empty State -->
+        <section id="emptyState" class="flex-1 flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-400 dark:text-gray-500 transition-colors">
+            <i data-lucide="arrow-left" class="w-12 h-12 mb-4 opacity-50"></i>
+            <p class="text-lg">Selecciona un evento de la lista o crea uno nuevo.</p>
+        </section>
+
+    </main>
+
+    <!-- Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-green-600 text-white px-6 py-3 rounded-lg shadow-xl transform translate-y-20 transition-transform duration-300 font-medium z-50">
+        ¡Código copiado al portapapeles!
+    </div>
+
+    <script>
+        // --- DATA INICIAL (TU ARCHIVO) ---
+        let events = [
+            {
+                title: "Granja Cripto", emoji: "💻",
+                desc: "El hijo del 5º mina cripto. La luz se ha disparado.",
+                options: [
+                    { txt: "Cortar cables", sub: "A lo bruto.", money: 0, pop: 5, sanity: 10, msg: "Niño llorando, luz pagada." },
+                    { txt: "Comisión", sub: "Soborno.", money: 400, pop: -15, sanity: -5, msg: "Dinero sucio en tu bolsillo." },
+                    { txt: "Invertir", sub: "Riesgo.", money: -500, pop: -10, sanity: -15, msg: "¡Crash! Perdiste todo." }
+                ]
+            },
+            {
+                title: "Tigre en el 1ºA", emoji: "🐯",
+                desc: "Doña Rogelia dice que es un gato grande. Ruge mucho.",
+                options: [
+                    { txt: "Llamar Zoo", sub: "Seguridad.", money: 0, pop: 10, sanity: 0, msg: "Era un peluche gigante animatrónico." },
+                    { txt: "Cobrar Extra", sub: "Tasa mascota.", money: 200, pop: -20, sanity: -5, msg: "Pagó con billetes mordidos." },
+                    { txt: "Acariciar", sub: "Valiente.", money: 0, pop: 5, sanity: -20, msg: "Casi pierdes la mano." }
+                ]
+            },
+            {
+                title: "Espuma Party", emoji: "🧼",
+                desc: "Un youtuber llenó el ascensor de jabón.",
+                options: [
+                    { txt: "Limpieza", sub: "-300€", money: -300, pop: 10, sanity: 5, msg: "Limpio como una patena." },
+                    { txt: "Salir en vídeo", sub: "Fama.", money: 100, pop: -25, sanity: -10, msg: "Viral por ridículo." },
+                    { txt: "Ignorar", sub: "Ahorro.", money: 0, pop: -30, sanity: -5, msg: "Todos resbalan." }
+                ]
+            },
+            {
+                title: "Catapulta 5G", emoji: "📡",
+                desc: "El del ático ataca la antena con melones.",
+                options: [
+                    { txt: "Confiscar", sub: "Fuerza.", money: 0, pop: 5, sanity: -10, msg: "Te dio un melonazo." },
+                    { txt: "Psiquiátrico", sub: "Ayuda.", money: -100, pop: 0, sanity: 10, msg: "Se lo llevaron." },
+                    { txt: "Unirse", sub: "Locura.", money: -10, pop: -25, sanity: -25, msg: "Perdiste la cabeza." }
+                ]
+            },
+            {
+                title: "Batería a las 3AM", emoji: "🥁",
+                desc: "El nieto del 2ºB ha formado una banda de Death Metal.",
+                options: [
+                    { txt: "Unirse", sub: "Rock & Roll.", money: 0, pop: -10, sanity: 15, msg: "Liberaste estrés gritando." },
+                    { txt: "Cortar Luz", sub: "Silencio.", money: 0, pop: 5, sanity: 5, msg: "Se hizo el silencio, pero el vecino te odia." },
+                    { txt: "Insonorizar", sub: "-600€", money: -600, pop: 20, sanity: 10, msg: "Paz absoluta y cara." }
+                ]
+            },
+            {
+                title: "Plaga Cucarachas", emoji: "🪳",
+                desc: "Han salido de las alcantarillas. Parecen organizadas.",
+                options: [
+                    { txt: "Lanzallamas", sub: "Fuego.", money: -50, pop: -10, sanity: 10, msg: "Efectivo, pero quemaste el felpudo." },
+                    { txt: "Fumigar", sub: "-200€", money: -200, pop: 10, sanity: 5, msg: "Problema resuelto profesionalmente." },
+                    { txt: "Negociar", sub: "Diplomacia.", money: 0, pop: -20, sanity: -15, msg: "Ahora ellas pagan cuota de comunidad." }
+                ]
+            },
+            {
+                title: "Gotera Fantasma", emoji: "💧",
+                desc: "Humedad con forma de cara en el 3º. Dicen que es un milagro.",
+                options: [
+                    { txt: "Cobrar Entrada", sub: "Turismo.", money: 500, pop: -15, sanity: -5, msg: "Peregrinación de curiosos en la escalera." },
+                    { txt: "Pintar", sub: "-100€", money: -100, pop: 5, sanity: 0, msg: "Adiós al milagro." },
+                    { txt: "Llamar Cura", sub: "Exorcismo.", money: -50, pop: 0, sanity: 10, msg: "Bendijo la tubería." }
+                ]
+            },
+            {
+                title: "Vecino Nudista", emoji: "🍑",
+                desc: "El del bajo toma el sol en el patio. Tal y como vino al mundo.",
+                options: [
+                    { txt: "Multar", sub: "Decoro.", money: 100, pop: 5, sanity: 0, msg: "Se ha puesto un calcetín. Algo es algo." },
+                    { txt: "Unirse", sub: "Libertad.", money: 0, pop: -20, sanity: 20, msg: "Moreno integral conseguido." },
+                    { txt: "Subir Muro", sub: "-300€", money: -300, pop: 10, sanity: 5, msg: "Ojos que no ven..." }
+                ]
+            },
+            {
+                title: "Mimos Okupas", emoji: "🤡", rare: true,
+                desc: "Han levantado un muro invisible en el portal.",
+                options: [
+                    { txt: "Seguridad", sub: "-400€", money: -400, pop: 10, sanity: -10, msg: "Huyeron en silencio." },
+                    { txt: "Duelo Mímica", sub: "Reto.", money: 0, pop: 25, sanity: -20, msg: "¡Ganaste! Se fueron llorando." },
+                    { txt: "Admirar", sub: "Arte.", money: 0, pop: -20, sanity: 5, msg: "Ahora cobran entrada." }
+                ]
+            },
+            {
+                title: "Ruinas Romanas", emoji: "🏺", rare: true,
+                desc: "Obras paradas. Han hallado un mosaico en el garaje.",
+                options: [
+                    { txt: "Hormigón", sub: "Ocultar.", money: -200, pop: 10, sanity: -15, msg: "El secreto está sellado." },
+                    { txt: "Vender", sub: "Mercado negro.", money: 1200, pop: -10, sanity: -20, msg: "Maldición antigua activada." },
+                    { txt: "Museo", sub: "Legal.", money: 0, pop: 30, sanity: 10, msg: "Edificio histórico. Orgullo." }
+                ]
+            },
+            {
+                title: "Portal Dimensional", emoji: "🌀", rare: true,
+                desc: "Un vórtice morado ha aparecido en contadores.",
+                options: [
+                    { txt: "Peaje", sub: "Aduana.", money: 600, pop: -10, sanity: -20, msg: "Cobras en monedas alienígenas." },
+                    { txt: "Tirar Basura", sub: "Reciclaje.", money: 0, pop: 15, sanity: -10, msg: "El portal devolvió la basura enfadado." },
+                    { txt: "Entrar", sub: "¿Fin?", money: 200, pop: 0, sanity: -50, msg: "Viste el infinito. Encontraste 200€ allí." }
+                ]
+            },
+            {
+                title: "Meteorito", emoji: "☄️", rare: true,
+                desc: "Ha caído una roca espacial en la piscina comunitaria.",
+                options: [
+                    { txt: "Vender en eBay", sub: "Espacio.", money: 1000, pop: 0, sanity: 0, msg: "Era solo caca de avión congelada. Fraude." },
+                    { txt: "Adorar", sub: "Secta.", money: 0, pop: -30, sanity: -30, msg: "La comunidad ahora es una secta." },
+                    { txt: "Limpiar", sub: "-150€", money: -150, pop: 10, sanity: 5, msg: "Piscina operativa de nuevo." }
+                ]
+            }
+        ];
+
+        // --- STATE MANAGMENT ---
+        let currentIndex = -1;
+
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            lucide.createIcons();
+            renderList();
+            setupListeners();
+        });
+
+        // --- THEME LOGIC ---
+        function initTheme() {
+            // Check local storage or system preference
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            updateThemeIcon();
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                html.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
+            updateThemeIcon();
+        }
+
+        function updateThemeIcon() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const icon = document.getElementById('themeIcon');
+            // Re-render icon
+            icon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+            lucide.createIcons();
+        }
+
+        // --- RENDER LIST ---
+        function renderList() {
+            const listContainer = document.getElementById('eventList');
+            listContainer.innerHTML = '';
+            document.getElementById('eventCount').innerText = events.length;
+
+            events.forEach((ev, index) => {
+                const el = document.createElement('div');
+                
+                // Dynamic Classes based on State & Theme
+                const activeClass = 'bg-blue-50 border-blue-500 dark:bg-blue-900/40 dark:border-blue-500 shadow-sm';
+                const inactiveClass = 'bg-white border-gray-200 hover:bg-gray-100 dark:bg-gray-700/50 dark:border-transparent dark:hover:bg-gray-700 dark:hover:border-gray-600';
+                
+                el.className = `p-3 rounded-lg cursor-pointer border transition flex items-center gap-3 ${index === currentIndex ? activeClass : inactiveClass}`;
+                el.onclick = () => selectEvent(index);
+                
+                const rareBadge = ev.rare ? '<span class="text-[10px] bg-purple-600 text-white px-1.5 rounded ml-auto">RARO</span>' : '';
+                
+                el.innerHTML = `
+                    <span class="text-2xl">${ev.emoji}</span>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-bold text-sm truncate text-gray-800 dark:text-gray-200">${ev.title || 'Sin Título'}</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 truncate">${ev.desc || '...'}</p>
+                    </div>
+                    ${rareBadge}
+                `;
+                listContainer.appendChild(el);
+            });
+        }
+
+        // --- SELECT EVENT ---
+        function selectEvent(index) {
+            currentIndex = index;
+            const ev = events[index];
+            
+            // Show Editor
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('editorPanel').classList.remove('hidden');
+
+            // Populate Main Fields
+            document.getElementById('editTitle').value = ev.title;
+            document.getElementById('editEmoji').value = ev.emoji;
+            document.getElementById('editDesc').value = ev.desc;
+            document.getElementById('editRare').checked = !!ev.rare;
+
+            // Populate Options
+            const optInputs = document.querySelectorAll('.opt-input');
+            optInputs.forEach(input => {
+                const optIdx = parseInt(input.dataset.opt);
+                const field = input.dataset.field;
+                const optData = ev.options[optIdx] || {};
+                
+                // Normalización de cost/money visualmente a un solo campo
+                if (field === 'money') {
+                    // Si existe money usamos money, si no, checkeamos cost negativo
+                    let val = 0;
+                    if (optData.money !== undefined) val = optData.money;
+                    else if (optData.cost !== undefined) val = optData.cost;
+                    input.value = val;
+                } else {
+                    input.value = optData[field] || '';
+                }
+            });
+
+            renderList(); // Re-render to highlight active
+        }
+
+        // --- LISTENERS FOR EDITING ---
+        function setupListeners() {
+            // Main Fields
+            ['editTitle', 'editEmoji', 'editDesc'].forEach(id => {
+                document.getElementById(id).addEventListener('input', (e) => {
+                    if (currentIndex === -1) return;
+                    const field = id.replace('edit', '').toLowerCase();
+                    // Special map because id is editTitle but field is title
+                    const key = field === 'title' ? 'title' : field === 'emoji' ? 'emoji' : 'desc';
+                    events[currentIndex][key] = e.target.value;
+                    renderList(); // Update Sidebar Title/Desc live
+                });
+            });
+
+            document.getElementById('editRare').addEventListener('change', (e) => {
+                if (currentIndex === -1) return;
+                events[currentIndex].rare = e.target.checked;
+                renderList();
+            });
+
+            // Option Fields
+            const optInputs = document.querySelectorAll('.opt-input');
+            optInputs.forEach(input => {
+                input.addEventListener('input', (e) => {
+                    if (currentIndex === -1) return;
+                    const optIdx = parseInt(e.target.dataset.opt);
+                    const field = e.target.dataset.field;
+                    let val = e.target.value;
+
+                    // Parse numbers
+                    if (['money', 'pop', 'sanity'].includes(field)) {
+                        val = parseInt(val) || 0;
+                    }
+
+                    // Ensure options array exists/is filled
+                    if (!events[currentIndex].options[optIdx]) {
+                        events[currentIndex].options[optIdx] = {};
+                    }
+
+                    // Handle Money Logic (Standardize to 'money' internally for simplicity while editing)
+                    if (field === 'money') {
+                        events[currentIndex].options[optIdx].money = val;
+                        // Remove legacy 'cost' property to avoid confusion if we save new value
+                        delete events[currentIndex].options[optIdx].cost;
+                    } else {
+                        events[currentIndex].options[optIdx][field] = val;
+                    }
+                });
+            });
+        }
+
+        // --- ACTIONS ---
+        function addNewEvent() {
+            const newEvent = {
+                title: "Nuevo Evento",
+                emoji: "🆕",
+                desc: "Describe el problema aquí...",
+                rare: false,
+                options: [
+                    { txt: "Opción A", sub: "Subtexto", money: 0, pop: 0, sanity: 0, msg: "Resultado A" },
+                    { txt: "Opción B", sub: "Subtexto", money: 0, pop: 0, sanity: 0, msg: "Resultado B" },
+                    { txt: "Opción C", sub: "Subtexto", money: 0, pop: 0, sanity: 0, msg: "Resultado C" }
+                ]
+            };
+            events.push(newEvent);
+            renderList();
+            selectEvent(events.length - 1);
+            // Scroll sidebar to bottom
+            const list = document.getElementById('eventList');
+            list.scrollTop = list.scrollHeight;
+        }
+
+        function deleteCurrentEvent() {
+            if (currentIndex === -1) return;
+            if (!confirm("¿Seguro que quieres borrar este evento?")) return;
+            
+            events.splice(currentIndex, 1);
+            currentIndex = -1;
+            document.getElementById('emptyState').classList.remove('hidden');
+            document.getElementById('editorPanel').classList.add('hidden');
+            renderList();
+        }
+
+        // --- EXPORT LOGIC ---
+        function generateCodeString() {
+            let js = "const EVENTS_DB = [\n";
+            
+            events.forEach(ev => {
+                // Header of the object
+                if (ev.rare) {
+                    js += `    {\n        title: "${escapeStr(ev.title)}", emoji: "${ev.emoji}", rare: true,\n`;
+                } else {
+                    js += `    {\n        title: "${escapeStr(ev.title)}", emoji: "${ev.emoji}",\n`;
+                }
+                
+                js += `        desc: "${escapeStr(ev.desc)}",\n`;
+                js += `        options: [\n`;
+                
+                // Options loop
+                ev.options.forEach((opt, i) => {
+                    const isLast = i === ev.options.length - 1;
+                    
+                    // Logic to split money vs cost for authenticity to original file format
+                    let costStr = "";
+                    let moneyVal = opt.money !== undefined ? opt.money : (opt.cost || 0);
+                    
+                    if (moneyVal < 0) {
+                        costStr = `cost: ${moneyVal}`;
+                    } else {
+                        costStr = `cost: 0, money: ${moneyVal}`;
+                    }
+
+                    // Clean string building
+                    js += `            { txt: "${escapeStr(opt.txt)}", sub: "${escapeStr(opt.sub)}", ${costStr}, pop: ${opt.pop || 0}, sanity: ${opt.sanity || 0}, msg: "${escapeStr(opt.msg)}" }${isLast ? '' : ','}\n`;
+                });
+                
+                js += `        ]\n    },\n`;
+            });
+            
+            // Remove last comma if exists and close array
+            js = js.replace(/,\n$/, "\n");
+            js += "];";
+            return js;
+        }
+
+        function escapeStr(str) {
+            if (!str) return "";
+            return str.replace(/"/g, '\\"');
+        }
+
+        function copyToClipboard() {
+            const code = generateCodeString();
+            navigator.clipboard.writeText(code).then(() => {
+                const toast = document.getElementById('toast');
+                toast.classList.remove('translate-y-20');
+                setTimeout(() => {
+                    toast.classList.add('translate-y-20');
+                }, 3000);
+            });
+        }
+
+        function downloadBackup() {
+            const code = generateCodeString();
+            const blob = new Blob([code], { type: "text/javascript" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "events.js";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+    </script>
+</body>
+</html>

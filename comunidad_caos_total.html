@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comunidad: Edición Horizontal + Gameplay Extendido</title>
+    
+    <style>
+        /* --- ESTILOS GENERALES --- */
+        :root {
+            --primary: #2c3e50;
+            --accent: #e67e22; /* Naranja */
+            --danger: #c0392b; /* Rojo oscuro */
+            --success: #27ae60; /* Verde */
+            --neutral: #f1c40f; /* Amarillo */
+            --rare: #8e44ad; /* Morado para eventos raros */
+            --bg: #ecf0f1;
+            --sidebar-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: #95a5a6;
+            color: var(--primary);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            user-select: none;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            height: 700px;
+            background: var(--bg);
+            box-shadow: 0 15px 50px rgba(0,0,0,0.25);
+            display: flex;
+            flex-direction: column;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        /* HEADER */
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 4px solid var(--accent);
+            flex-shrink: 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+        
+        header h1 { margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; }
+        .role-badge { background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: normal; }
+
+        .turn-indicator {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        /* --- LAYOUT --- */
+        .main-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR (IZQUIERDA) */
+        .sidebar {
+            width: 360px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid #bdc3c7;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            flex-shrink: 0;
+            z-index: 2;
+        }
+
+        /* ZONA DE JUEGO (DERECHA) */
+        .game-zone {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            background-image: radial-gradient(#bdc3c7 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-color: #f4f6f7;
+            position: relative;
+        }
+
+        /* --- SIDEBAR COMPONENTS --- */
+
+        /* 1. STATS */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            padding: 12px;
+            gap: 8px;
+            background: #fdfdfd;
+            border-bottom: 1px solid #eee;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 6px;
+            text-align: center;
+            border: 1px solid #e1e8ed;
+        }
+        .stat-val { font-weight: 800; font-size: 0.95rem; display: block; }
+        .stat-name { font-size: 0.65rem; text-transform: uppercase; color: #7f8c8d; }
+        .bar-bg { height: 4px; background: #ddd; margin-top: 5px; border-radius: 2px; width: 100%; }
+        .bar-fill { height: 100%; transition: width 0.3s; border-radius: 2px; }
+
+        /* 2. ACCIONES DE GOBIERNO */
+        .actions-panel {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            background: #fff;
+        }
+        .panel-title {
+            font-size: 0.75rem; text-transform: uppercase; color: #95a5a6; margin-bottom: 8px; font-weight: bold; letter-spacing: 0.5px;
+        }
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 6px;
+        }
+        .act-btn {
+            background: white; border: 1px solid #bdc3c7; border-radius: 6px;
+            padding: 8px 4px; text-align: center; cursor: pointer;
+            transition: all 0.2s; position: relative; overflow: hidden;
+        }
+        .act-btn:hover { background: #f0f3f4; border-color: var(--primary); transform: translateY(-2px); }
+        .act-btn:active { transform: scale(0.95); }
+        .act-icon { font-size: 1.2rem; display: block; margin-bottom: 2px; }
+        .act-name { font-size: 0.7rem; font-weight: bold; display: block; color: var(--primary); }
+        .act-cost { font-size: 0.65rem; color: var(--danger); display: block; margin-top: 2px; }
+
+        /* 3. VECINOS */
+        .neighbors-panel {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            background: #fbfbfb;
+        }
+        .neighbors-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+        }
+        .n-cell {
+            aspect-ratio: 1;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .n-happy { background-color: #d5f5e3; border-color: var(--success); }
+        .n-neutral { background-color: #fcf3cf; border-color: var(--neutral); }
+        .n-angry { background-color: #fadbd8; border-color: var(--danger); }
+        .changed-up { animation: pulseGreen 0.5s; }
+        .changed-down { animation: shakeRed 0.5s; }
+
+        /* 4. LOG */
+        #log {
+            flex: 1;
+            overflow-y: auto;
+            background: #fdfdfd;
+            padding: 12px;
+            font-size: 0.8rem;
+            border-top: 1px solid #ddd;
+        }
+        .log-entry { padding: 4px 0; border-bottom: 1px solid #f0f0f0; line-height: 1.3; }
+        .log-turn { font-weight: bold; color: var(--accent); }
+
+        /* --- CARD --- */
+        .card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 16px;
+            padding: 30px;
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+        }
+        .card.rare { border: 3px solid var(--rare); background: #fbfaff; }
+        .rare-tag { position: absolute; top: -10px; right: 20px; background: var(--rare); color: white; padding: 4px 10px; font-size: 0.7rem; border-radius: 12px; font-weight: bold; }
+        .emoji-display { font-size: 4rem; margin-bottom: 15px; display: inline-block; animation: float 3s infinite ease-in-out; }
+        .card-title { font-size: 1.4rem; margin: 0 0 10px 0; color: var(--primary); line-height: 1.1; }
+        .card-desc { color: #555; line-height: 1.5; font-size: 1rem; margin-bottom: 25px; min-height: 40px; }
+        
+        .choice-btn {
+            background: #fff; border: 2px solid #ecf0f1; padding: 10px 14px;
+            border-radius: 8px; text-align: left; cursor: pointer; transition: all 0.2s;
+            position: relative; margin-bottom: 8px;
+        }
+        .choice-btn:hover { border-color: var(--accent); transform: translateX(5px); background: #fffbf7; }
+        .btn-txt { font-weight: 600; display: block; color: var(--primary); font-size: 0.95rem; }
+        .btn-sub { font-size: 0.75rem; opacity: 0.6; }
+        .cost-tag { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-weight: bold; font-size: 0.85rem; color: var(--danger); }
+        .free-tag { color: var(--success); }
+
+        /* --- SELECTION MODAL --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(44, 62, 80, 0.95);
+            z-index: 100;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .char-select-box {
+            background: transparent;
+            width: 90%; max-width: 800px;
+            text-align: center; color: white;
+        }
+        .char-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 30px;
+        }
+        .char-card {
+            background: white; color: var(--primary);
+            padding: 20px; border-radius: 12px; cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .char-card:hover { transform: translateY(-10px); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .char-icon { font-size: 3rem; margin-bottom: 10px; }
+        .char-title { font-weight: bold; font-size: 1.2rem; margin-bottom: 5px; }
+        .char-desc { font-size: 0.85rem; opacity: 0.8; line-height: 1.4; }
+        .char-buff { margin-top: 10px; font-size: 0.8rem; font-weight: bold; color: var(--success); background: #d5f5e3; padding: 4px 8px; border-radius: 4px;}
+        .char-nerf { margin-top: 5px; font-size: 0.8rem; font-weight: bold; color: var(--danger); background: #fadbd8; padding: 4px 8px; border-radius: 4px;}
+
+        /* MODAL GAME OVER */
+        .go-box { background: white; padding: 40px; border-radius: 20px; text-align: center; max-width: 400px; animation: popIn 0.3s; }
+
+        /* ANIMACIONES */
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-6px); } }
+        @keyframes pulseGreen { 0% { transform: scale(1); } 50% { transform: scale(1.2); background-color: #27ae60; color: white; } 100% { transform: scale(1); } }
+        @keyframes shakeRed { 0% { transform: translateX(0); } 25% { transform: translateX(-3px); background-color: #c0392b; color: white;} 75% { transform: translateX(3px); } 100% { transform: translateX(0); } }
+        
+        .floater {
+            position: absolute; font-weight: bold; font-size: 1.2rem;
+            pointer-events: none; animation: floatUp 1.5s forwards; z-index: 99; text-shadow: 0 1px 2px white;
+        }
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-50px); } }
+        
+        .hidden { display: none !important; }
+
+        @media (max-width: 800px) {
+            .container { height: 100vh; border-radius: 0; }
+            .main-layout { flex-direction: column; overflow-y: auto; }
+            .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid #ddd; }
+            .char-grid { grid-template-columns: 1fr; }
+            .game-zone { padding: 20px; }
+            #log { height: 120px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>COMUNIDAD <span id="role-display" class="role-badge hidden">Rol</span></h1>
+        <div class="turn-indicator">Mes <span id="month-display">1</span> de 12</div>
+    </header>
+
+    <div class="main-layout">
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-name">Caja</div>
+                    <div id="money-val" class="stat-val">0€</div>
+                    <div class="bar-bg"><div id="money-bar" class="bar-fill" style="width: 50%; background: var(--success)"></div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-name">Popularidad</div>
+                    <div id="pop-val" class="stat-val">50%</div>
+                    <div class="bar-bg"><div id="pop-bar" class="bar-fill" style="width: 50%; background: var(--accent)"></div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-name">Cordura</div>
+                    <div id="sanity-val" class="stat-val">100%</div>
+                    <div class="bar-bg"><div id="sanity-bar" class="bar-fill" style="width: 100%; background: #3498db"></div></div>
+                </div>
+            </div>
+
+            <!-- ACCIONES DE GOBIERNO -->
+            <div class="actions-panel">
+                <div class="panel-title">Acciones de Presidente</div>
+                <div class="action-buttons">
+                    <div class="act-btn" onclick="game.doAction('bbq', this)">
+                        <span class="act-icon">🍖</span>
+                        <span class="act-name">Barbacoa</span>
+                        <span class="act-cost">-200€</span>
+                    </div>
+                    <div class="act-btn" onclick="game.doAction('yoga', this)">
+                        <span class="act-icon">🧘</span>
+                        <span class="act-name">Yoga</span>
+                        <span class="act-cost">-50€</span>
+                    </div>
+                    <div class="act-btn" onclick="game.doAction('fee', this)">
+                        <span class="act-icon">💰</span>
+                        <span class="act-name">Derrama</span>
+                        <span class="act-cost">-10% Pop</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="neighbors-panel">
+                <div class="panel-title">Estado Vecinal</div>
+                <div id="neighbors-grid" class="neighbors-grid"></div>
+            </div>
+
+            <div id="log"></div>
+        </div>
+
+        <!-- GAME ZONE -->
+        <div class="game-zone" id="game-board"></div>
+    </div>
+</div>
+
+<!-- MODAL SELECCION -->
+<div id="modal-select" class="modal-overlay">
+    <div class="char-select-box">
+        <h2 style="font-size: 2rem; margin: 0;">ELIGE TU PRESIDENTE</h2>
+        <p style="opacity: 0.8;">Cada uno tiene un estilo de gestión diferente.</p>
+        
+        <div class="char-grid">
+            <div class="char-card" onclick="game.start('corrupt')">
+                <div class="char-icon">🕶️</div>
+                <div class="char-title">El Empresario</div>
+                <div class="char-desc">Vienes a hacer dinero, no amigos. La gente desconfía, pero eres rico.</div>
+                <div class="char-buff">+3000€ Iniciales</div>
+                <div class="char-nerf">Pop. empieza al 30%</div>
+            </div>
+            <div class="char-card" onclick="game.start('granny')">
+                <div class="char-icon">👵</div>
+                <div class="char-title">La Abuela</div>
+                <div class="char-desc">Todo el mundo te quiere. Llevas bizcochos a las reuniones.</div>
+                <div class="char-buff">Pop. empieza al 70%</div>
+                <div class="char-nerf">-20% Ingresos (Cobra poco)</div>
+            </div>
+            <div class="char-card" onclick="game.start('zen')">
+                <div class="char-icon">🧘‍♂️</div>
+                <div class="char-title">El Hippie</div>
+                <div class="char-desc">El estrés no va contigo. Paz y amor, hermano.</div>
+                <div class="char-buff">Cordura baja mitad de lento</div>
+                <div class="char-nerf">Empieza con 1500€</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL GAME OVER -->
+<div id="modal-gameover" class="modal-overlay hidden">
+    <div class="go-box">
+        <div id="go-icon" style="font-size: 4rem;">💀</div>
+        <h2 id="go-title">FIN</h2>
+        <p id="go-msg">Mensaje</p>
+        <button class="btn-start" onclick="location.reload()">Menú Principal</button>
+    </div>
+</div>
+
+<!-- CARGAR ARCHIVO EXTERNO DE EVENTOS -->
+<script src="events.js"></script>
+
+<script>
+    // --- GAME ENGINE ---
+    const game = {
+        state: {
+            money: 0,
+            pop: 50,
+            neighbors: [],
+            sanity: 100,
+            month: 1,
+            maxMonths: 12,
+            gameOver: false,
+            playedIndices: [],
+            role: 'normal'
+        },
+        config: { income: 600, expenses: 400 },
+
+        init(role) {
+            // Verificar si EVENTS_DB se ha cargado correctamente
+            if (typeof EVENTS_DB === 'undefined') {
+                alert("Error: No se encuentra el archivo 'events.js'. Asegúrate de que ambos archivos están en la misma carpeta.");
+                return;
+            }
+
+            // Configurar según rol
+            let startMoney = 2500;
+            let startPop = 50;
+            let startSanity = 100;
+            let incomeMod = 1;
+
+            if (role === 'corrupt') { startMoney = 4000; startPop = 30; incomeMod = 1.3; }
+            if (role === 'granny') { startMoney = 2000; startPop = 70; incomeMod = 0.8; }
+            if (role === 'zen') { startMoney = 1500; startSanity = 100; }
+
+            // Generar vecinos basados en Pop inicial
+            const initialNeighbors = Array.from({length: 20}, () => {
+                const variance = Math.floor(Math.random() * 20) - 10;
+                return Math.max(0, Math.min(100, startPop + variance));
+            });
+
+            this.state = { 
+                money: startMoney, 
+                neighbors: initialNeighbors, 
+                pop: startPop,
+                sanity: startSanity, 
+                month: 1, maxMonths: 12, 
+                gameOver: false, playedIndices: [],
+                role: role,
+                incomeMod: incomeMod
+            };
+
+            // UI Setup
+            document.getElementById('modal-select').classList.add('hidden');
+            document.getElementById('role-display').textContent = role === 'corrupt' ? 'Empresario' : role === 'granny' ? 'Abuela' : 'Hippie';
+            document.getElementById('role-display').classList.remove('hidden');
+            
+            ui.renderNeighbors(this.state.neighbors);
+            ui.updateStats();
+            this.nextTurn();
+        },
+
+        start(role) { this.init(role); },
+
+        calcAvgPop(n) { return Math.round(n.reduce((a, b) => a + b, 0) / n.length); },
+
+        nextTurn() {
+            if (this.state.gameOver) return;
+            
+            // Economía
+            const net = Math.round((this.config.income * this.state.incomeMod) - this.config.expenses);
+            this.state.money += net;
+            ui.addLog(`Mes ${this.state.month}: Ingresos netos (+${net}€).`);
+
+            // Selección de evento
+            let wantRare = (this.state.month > 2 && Math.random() > 0.7);
+            const allEvents = EVENTS_DB.map((e, i) => ({ ...e, _idx: i }));
+            let available = allEvents.filter(e => !!e.rare === wantRare && !this.state.playedIndices.includes(e._idx));
+            if (available.length === 0) available = allEvents.filter(e => !!e.rare !== wantRare && !this.state.playedIndices.includes(e._idx));
+            if (available.length === 0) {
+                this.state.playedIndices = [];
+                available = allEvents;
+            }
+
+            const selected = available[Math.floor(Math.random() * available.length)];
+            this.state.playedIndices.push(selected._idx);
+            
+            ui.renderCard(selected);
+            ui.updateStats();
+        },
+
+        applyChoice(opt) {
+            let sanityCost = opt.sanity || 0;
+            
+            // Buff Zen: Pierde menos cordura
+            if (this.state.role === 'zen' && sanityCost < 0) sanityCost = Math.ceil(sanityCost / 2);
+
+            this.state.money += (opt.cost || 0) + (opt.money || 0);
+            this.state.sanity += sanityCost;
+            this.state.sanity = Math.min(100, Math.max(0, this.state.sanity));
+
+            if (opt.pop !== 0) this.updateNeighbors(opt.pop);
+            this.state.pop = this.calcAvgPop(this.state.neighbors);
+
+            ui.addLog(opt.msg);
+            
+            if (this.checkGameOver()) return;
+            this.state.month++;
+            if (this.state.month > this.state.maxMonths) this.endGame("VICTORIA", "¡Sobreviviste al mandato! La comunidad te odia, pero estás vivo.", "🏆");
+            else setTimeout(() => this.nextTurn(), 600);
+        },
+
+        // --- ACTION SYSTEM ---
+        doAction(type, btnEl) {
+            if (this.state.gameOver) return;
+            let cost = 0;
+            let msg = "";
+            let success = false;
+
+            if (type === 'bbq') {
+                if (this.state.money >= 200) {
+                    this.state.money -= 200;
+                    this.updateNeighbors(5); // +5 a todos
+                    msg = "Barbacoa vecinal: ¡Todos contentos!";
+                    ui.spawnFloater(btnEl, 5, '% Pop');
+                    success = true;
+                } else msg = "No tienes dinero para chorizos.";
+            } else if (type === 'yoga') {
+                if (this.state.money >= 50) {
+                    this.state.money -= 50;
+                    this.state.sanity = Math.min(100, this.state.sanity + 15);
+                    msg = "Clase de Yoga: Ommmmm...";
+                    ui.spawnFloater(btnEl, 15, '% Cordura');
+                    success = true;
+                } else msg = "No puedes pagar al gurú.";
+            } else if (type === 'fee') {
+                this.state.money += 300;
+                this.updateNeighbors(-10); // -10 a todos
+                msg = "Derrama extra cobrada. Te odian.";
+                ui.spawnFloater(btnEl, 300, '€');
+                success = true;
+            }
+
+            if (success) {
+                this.state.pop = this.calcAvgPop(this.state.neighbors);
+                ui.addLog(msg);
+                ui.updateStats();
+                // Animación botón
+                btnEl.style.transform = "scale(0.9)";
+                setTimeout(() => btnEl.style.transform = "scale(1)", 100);
+            } else {
+                ui.addLog(`❌ ${msg}`);
+                btnEl.style.backgroundColor = "#fadbd8";
+                setTimeout(() => btnEl.style.backgroundColor = "white", 300);
+            }
+        },
+
+        updateNeighbors(change) {
+            // Aplicar cambio a cada vecino con varianza
+            this.state.neighbors = this.state.neighbors.map(val => {
+                const variance = Math.floor(Math.random() * 6) - 3; // +/- 3
+                return Math.max(0, Math.min(100, val + change + variance));
+            });
+            ui.renderNeighbors(this.state.neighbors, change);
+        },
+
+        checkGameOver() {
+            if (this.state.money <= -500) { this.endGame("BANCARROTA", "Te han embargado hasta los empastes.", "💸"); return true; }
+            if (this.state.pop <= 15) { this.endGame("LINCHAMIENTO", "Huye del país. Te buscan.", "🔥"); return true; }
+            if (this.state.sanity <= 0) { this.endGame("LOCURA", "Crees que eres una maceta.", "🤪"); return true; }
+            return false;
+        },
+
+        endGame(title, msg, icon) {
+            this.state.gameOver = true;
+            const m = document.getElementById('modal-gameover');
+            document.getElementById('go-title').textContent = title;
+            document.getElementById('go-msg').textContent = msg;
+            document.getElementById('go-icon').textContent = icon;
+            m.classList.remove('hidden');
+        }
+    };
+
+    // --- UI ---
+    const ui = {
+        els: {
+            money: document.getElementById('money-val'),
+            pop: document.getElementById('pop-val'),
+            sanity: document.getElementById('sanity-val'),
+            bars: {
+                money: document.getElementById('money-bar'),
+                pop: document.getElementById('pop-bar'),
+                sanity: document.getElementById('sanity-bar')
+            },
+            log: document.getElementById('log'),
+            month: document.getElementById('month-display'),
+            nGrid: document.getElementById('neighbors-grid'),
+            board: document.getElementById('game-board')
+        },
+
+        updateStats() {
+            const s = game.state;
+            this.els.month.textContent = s.month > 12 ? 12 : s.month;
+            this.els.money.textContent = s.money + '€';
+            this.els.pop.textContent = s.pop + '%';
+            this.els.sanity.textContent = s.sanity + '%';
+
+            let moneyPct = Math.max(0, Math.min(100, ((s.money + 500) / 5000) * 100));
+            this.els.bars.money.style.width = moneyPct + '%';
+            this.els.bars.pop.style.width = s.pop + '%';
+            this.els.bars.pop.style.backgroundColor = s.pop < 30 ? 'var(--danger)' : 'var(--accent)';
+            this.els.bars.sanity.style.width = s.sanity + '%';
+        },
+
+        renderNeighbors(neighbors, lastChange = 0) {
+            this.els.nGrid.innerHTML = '';
+            neighbors.forEach((val, idx) => {
+                const cell = document.createElement('div');
+                let statusClass = 'n-neutral', emoji = '😐';
+                if (val >= 60) { statusClass = 'n-happy'; emoji = '😊'; }
+                else if (val < 30) { statusClass = 'n-angry'; emoji = '😡'; }
+
+                cell.className = `n-cell ${statusClass}`;
+                cell.textContent = emoji;
+                cell.title = `Vecino ${idx+1}: ${val}%`;
+                
+                if (lastChange > 0) cell.classList.add('changed-up');
+                if (lastChange < 0) cell.classList.add('changed-down');
+                this.els.nGrid.appendChild(cell);
+            });
+        },
+
+        renderCard(evt) {
+            this.els.board.innerHTML = '';
+            const card = document.createElement('div');
+            card.className = evt.rare ? 'card rare' : 'card';
+            const rareLabel = evt.rare ? `<div class="rare-tag">Evento Raro</div>` : '';
+            const buttons = evt.options.map((opt, idx) => {
+                const costTxt = opt.cost < 0 ? `<span class="cost-tag">${opt.cost}€</span>` : `<span class="cost-tag free-tag">Gratis</span>`;
+                return `<div class="choice-btn" onclick="ui.selectOption(this, ${idx})">${costTxt}<span class="btn-txt">${opt.txt}</span><span class="btn-sub">${opt.sub}</span></div>`;
+            }).join('');
+
+            card.innerHTML = `${rareLabel}<div class="emoji-display">${evt.emoji}</div><h2 class="card-title">${evt.title}</h2><div class="card-desc">${evt.desc}</div><div class="btn-group">${buttons}</div>`;
+            this.els.board.appendChild(card);
+            this.currentOptions = evt.options;
+        },
+
+        selectOption(el, idx) {
+            if (game.state.gameOver) return;
+            const opt = this.currentOptions[idx];
+            this.spawnFloater(el, opt.cost + (opt.money||0), '€');
+            this.spawnFloater(el, opt.pop, '% Pop', 100);
+            
+            const btns = document.querySelectorAll('.choice-btn');
+            btns.forEach(b => { b.style.opacity = 0.5; b.style.pointerEvents = 'none'; });
+            el.style.opacity = 1; el.style.borderColor = 'var(--primary)';
+            setTimeout(() => game.applyChoice(opt), 400);
+        },
+
+        spawnFloater(parent, val, suffix) {
+            if (!val) return;
+            const div = document.createElement('div');
+            div.className = 'floater';
+            div.textContent = (val > 0 ? '+' : '') + val + suffix;
+            div.style.color = val > 0 ? 'var(--success)' : 'var(--danger)';
+            div.style.left = '50%'; div.style.top = '20%';
+            parent.appendChild(div);
+            setTimeout(() => div.remove(), 1500);
+        },
+
+        addLog(msg) {
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.innerHTML = `<span class="log-turn">M${game.state.month}:</span> ${msg}`;
+            this.els.log.prepend(div);
+        }
+    };
+</script>
+
+</body>
+</html>
